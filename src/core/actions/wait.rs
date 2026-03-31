@@ -38,12 +38,12 @@ pub async fn run(cfg: &WaitActionConfig, ctx: &ExecutionContext) -> Result<()> {
             .iter()
             .filter(|dep| {
                 let map = ctx.states.lock().unwrap();
-                match map.get(*dep) {
+                !matches!(
+                    map.get(*dep),
                     Some(ActionState::Success)
-                    | Some(ActionState::Failed(_))
-                    | Some(ActionState::Skipped) => false,
-                    _ => true,
-                }
+                        | Some(ActionState::Failed(_))
+                        | Some(ActionState::Skipped)
+                )
             })
             .cloned()
             .collect();
@@ -52,15 +52,15 @@ pub async fn run(cfg: &WaitActionConfig, ctx: &ExecutionContext) -> Result<()> {
             break;
         }
 
-        if let Some(t) = timeout {
-            if start.elapsed() >= t {
-                anyhow::bail!(
-                    "Wait action '{}' timed out after {} seconds waiting for: {:?}",
-                    cfg.name,
-                    cfg.timeout_secs,
-                    pending
-                );
-            }
+        if let Some(t) = timeout
+            && start.elapsed() >= t
+        {
+            anyhow::bail!(
+                "Wait action '{}' timed out after {} seconds waiting for: {:?}",
+                cfg.name,
+                cfg.timeout_secs,
+                pending
+            );
         }
 
         info!(waiting_for = ?pending, "Still waiting…");
