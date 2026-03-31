@@ -2,36 +2,34 @@
 
 actions:
   - name: prepare-demo-dir
-    type: filesystem
+    action: filesystem
     operation: create_dir
     destination: ./target/demo-progress/staging
 
   - name: simulate-download
-    type: shell
+    action: shell
     command: pwsh -NoLogo -NoProfile -Command "1..4 | ForEach-Object { Write-Output ('Downloading chunk ' + $_ + '/4'); Start-Sleep -Seconds 1 }"
     fail_on_error: true
 
   - name: stage-manifest
-    type: deploy
-    app: demo-progress
-    binary: ./examples/example-deploy.yaml
-    destination: ./target/demo-progress/staging/
+    action: deploy
+    file: ./examples/example-deploy.yaml
     target: local
-    exec_type: script
+    type: script
 
   - name: simulate-health-check
-    type: shell
+    action: shell
     command: pwsh -NoLogo -NoProfile -Command "1..3 | ForEach-Object { Write-Output ('Health check step ' + $_ + '/3'); Start-Sleep -Seconds 2 }"
     fail_on_error: true
 
   - name: confirm-staging
-    type: wait
+    action: wait
     depends_on:
       - stage-manifest
       - simulate-health-check
     timeout_secs: 30
 
   - name: finalize-demo
-    type: shell
+    action: shell
     command: pwsh -NoLogo -NoProfile -Command "Write-Output 'Finalizing deployment view'; Start-Sleep -Seconds 2; Write-Output 'Demo completed'"
     fail_on_error: true

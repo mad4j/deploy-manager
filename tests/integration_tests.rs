@@ -57,7 +57,7 @@ fn dry_run_shell_command() {
         r#"
 actions:
   - name: greet
-    type: shell
+    action: shell
     command: echo "hello"
 "#,
     )
@@ -80,7 +80,7 @@ fn dry_run_shell_command_list() {
         r#"
 actions:
   - name: greet-many
-    type: shell
+    action: shell
     command:
       - echo "hello"
       - echo "world"
@@ -107,7 +107,7 @@ fn dry_run_filesystem_action() {
             r#"
 actions:
   - name: mkdir
-    type: filesystem
+    action: filesystem
     operation: create_dir
     destination: '{}'
 "#,
@@ -133,9 +133,8 @@ fn dry_run_deploy_missing_binary() {
         r#"
 actions:
   - name: deploy-app
-    type: deploy
-    app: myapp
-    binary: /nonexistent/binary
+    action: deploy
+    file: /nonexistent/binary
 "#,
     )
     .unwrap();
@@ -159,7 +158,7 @@ fn real_shell_command_success() {
             r#"
 actions:
   - name: say-hello
-    type: shell
+    action: shell
     command: '{}'
 "#,
             yaml_single_quoted_str(success_command())
@@ -185,7 +184,7 @@ fn real_shell_command_failure() {
             r#"
 actions:
   - name: fail-cmd
-    type: shell
+    action: shell
     command: '{}'
     fail_on_error: true
 "#,
@@ -209,7 +208,7 @@ fn real_filesystem_create_dir() {
             r#"
 actions:
   - name: make-dir
-    type: filesystem
+    action: filesystem
     operation: create_dir
     destination: '{}'
 "#,
@@ -241,7 +240,7 @@ fn real_filesystem_copy_file() {
             r#"
 actions:
   - name: copy-file
-    type: filesystem
+    action: filesystem
     operation: copy
     source: '{}'
     destination: '{}'
@@ -289,10 +288,10 @@ fn wait_action_dry_run() {
         r#"
 actions:
   - name: first
-    type: shell
+    action: shell
     command: echo first
   - name: sync
-    type: wait
+    action: wait
     depends_on:
       - first
 "#,
@@ -322,7 +321,7 @@ fn dry_run_supports_env_var_interpolation() {
             r#"
 actions:
   - name: greet
-    type: shell
+    action: shell
     command: echo ${{{}}}
 "#,
             env_var_name
@@ -347,7 +346,7 @@ fn missing_env_var_fails_deploy_file_parsing() {
         r#"
 actions:
   - name: bad-env
-    type: shell
+    action: shell
     command: "echo ${DEPLOY_MANAGER_TEST_MISSING_ENV_31A03A9B}"
 "#,
     )

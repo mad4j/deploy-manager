@@ -9,9 +9,9 @@ pub struct DeployFile {
 }
 
 /// Every entry in the `actions` list is one of these variants, discriminated
-/// by the `type` field.
+/// by the `action` field.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "action", rename_all = "snake_case")]
 pub enum ActionConfig {
     Deploy(DeployActionConfig),
     Shell(ShellActionConfig),
@@ -66,19 +66,14 @@ pub enum ExecType {
 pub struct DeployActionConfig {
     /// Unique name for this action (used for dependency resolution).
     pub name: String,
-    /// Application name / identifier.
-    pub app: String,
-    /// Path to the binary / artefact that should be deployed.
-    pub binary: PathBuf,
-    /// Destination directory where the binary will be copied.
-    #[serde(default)]
-    pub destination: Option<PathBuf>,
+    /// Path to the file / artefact that should be deployed.
+    pub file: PathBuf,
     /// Target processor / environment (default: `local`).
     #[serde(default)]
     pub target: DeployTarget,
     /// Type of executable (default: `executable`).
     #[serde(default)]
-    pub exec_type: ExecType,
+    pub r#type: ExecType,
 }
 
 // ---------------------------------------------------------------------------
@@ -242,31 +237,26 @@ fn validate_deploy_file(deploy: &DeployFile) -> anyhow::Result<()> {
 mod tests {
     use super::*;
 
-    const SAMPLE_YAML: &str = r#"
-actions:
-  - name: copy-binary
-    type: deploy
-    app: myapp
-    binary: /usr/local/bin/myapp
-    destination: /opt/apps/
-    target: local
-    exec_type: executable
-
-  - name: run-setup
-    type: shell
-    command: echo "Setup complete"
-    fail_on_error: true
-
-  - name: create-config-dir
-    type: filesystem
-    operation: create_dir
-    destination: /etc/myapp
-
-  - name: wait-for-setup
-    type: wait
-    depends_on:
-      - run-setup
-"#;
+        const SAMPLE_YAML: &str = concat!(
+                "actions:\n",
+                "  - name: copy-binary\n",
+                "    action: deploy\n",
+                "    file: /usr/local/bin/myapp\n",
+                "    target: local\n",
+                "    type: executable\n",
+                "  - name: run-setup\n",
+                "    action: shell\n",
+                "    command: echo \"Setup complete\"\n",
+                "    fail_on_error: true\n",
+                "  - name: create-config-dir\n",
+                "    action: filesystem\n",
+                "    operation: create_dir\n",
+                "    destination: /etc/myapp\n",
+                "  - name: wait-for-setup\n",
+                "    action: wait\n",
+                "    depends_on:\n",
+                "      - run-setup\n"
+        );
 
     #[test]
     fn parse_sample_yaml() {
@@ -279,10 +269,10 @@ actions:
         let yaml = r#"
 actions:
   - name: dup
-    type: shell
+    action: shell
     command: echo 1
   - name: dup
-    type: shell
+    action: shell
     command: echo 2
 "#;
         assert!(parse_deploy_file(yaml).is_err());
@@ -293,14 +283,13 @@ actions:
         let yaml = r#"
 actions:
   - name: deploy-app
-    type: deploy
-    app: myapp
-    binary: /bin/myapp
+    action: deploy
+    file: /bin/myapp
 "#;
         let deploy = parse_deploy_file(yaml).unwrap();
         if let ActionConfig::Deploy(cfg) = &deploy.actions[0] {
             assert_eq!(cfg.target, DeployTarget::Local);
-            assert_eq!(cfg.exec_type, ExecType::Executable);
+            assert_eq!(cfg.r#type, ExecType::Executable);
         } else {
             panic!("expected deploy action");
         }
@@ -317,7 +306,7 @@ actions:
             r#"
 actions:
   - name: print-path
-    type: shell
+    action: shell
     command: echo ${{{}}}
 "#,
             env_var_name
@@ -341,14 +330,14 @@ actions:
 
     #[test]
     fn shell_command_list_supported() {
-        let yaml = r#"
-actions:
-  - name: run-many
-    type: shell
-    command:
-      - echo first
-      - echo second
-"#;
+                let yaml = concat!(
+                        "actions:\n",
+                        "  - name: run-many\n",
+                        "    action: shell\n",
+                        "    command:\n",
+                        "      - echo first\n",
+                        "      - echo second\n"
+                );
 
         let deploy = parse_deploy_file(yaml).unwrap();
         if let ActionConfig::Shell(cfg) = &deploy.actions[0] {
@@ -370,7 +359,7 @@ actions:
         let yaml = r#"
 actions:
   - name: bad-env
-    type: shell
+    action: shell
     command: "echo ${DEPLOY_MANAGER_TEST_MISSING_ENV_31A03A9B}"
 "#;
 

@@ -17,20 +17,18 @@ A deploy file is a YAML document with the following top-level fields:
 | `description` | string | no | Human-readable description of the deploy plan |
 | `actions` | list | yes | Ordered list of actions to execute |
 
-Each action has a mandatory `type` field that selects the action variant, and a mandatory `name` field that uniquely identifies it (used for dependency resolution in `wait` actions).
+Each action has a mandatory `action` field that selects the action variant, and a mandatory `name` field that uniquely identifies it (used for dependency resolution in `wait` actions).
 
 ---
 
-### `deploy` — copy a binary/artefact to a destination
+### `deploy` — verify a deployable file
 
 ```yaml
 - name: deploy-myapp          # required – unique identifier
-  type: deploy
-  app: myapp                  # required – application name
-  binary: /path/to/myapp      # required – path to the artefact
-  destination: /opt/apps/     # optional – target directory
+  action: deploy
+  file: /path/to/myapp        # required – path to the artefact
   target: local               # optional – local (default) | remote(<host>)
-  exec_type: executable       # optional – executable (default) | service | container | script
+  type: executable            # optional – executable (default) | service | container | script
 ```
 
 ---
@@ -39,7 +37,7 @@ Each action has a mandatory `type` field that selects the action variant, and a 
 
 ```yaml
 - name: run-hook              # required
-  type: shell
+  action: shell
   command: echo "hello"       # required – single command OR list of commands
   working_dir: /tmp           # optional – working directory (default: cwd)
   fail_on_error: true         # optional – abort on non-zero exit code (default: true)
@@ -49,7 +47,7 @@ You can also execute multiple commands in sequence:
 
 ```yaml
 - name: run-setup
-  type: shell
+  action: shell
   command:
     - echo "prepare"
     - echo "migrate"
@@ -65,7 +63,7 @@ When `fail_on_error` is `true`, execution stops at the first command with non-ze
 
 ```yaml
 - name: create-config-dir     # required
-  type: filesystem
+  action: filesystem
   operation: create_dir       # required – copy | move | delete | create_dir | create_file
   source: /src/file.txt       # required for: copy, move, delete
   destination: /etc/myapp/    # required for: copy, move, create_dir, create_file
@@ -78,7 +76,7 @@ When `fail_on_error` is `true`, execution stops at the first command with non-ze
 
 ```yaml
 - name: wait-for-deploy       # required
-  type: wait
+  action: wait
   depends_on:                 # required – list of action names to wait for
     - deploy-myapp
     - run-hook
@@ -100,10 +98,9 @@ description: 'Deploy ${APP_NAME}'
 
 actions:
 	- name: deploy
-		type: deploy
-		app: '${APP_NAME}'
-		binary: '${APP_BINARY}'
-		destination: '${DEPLOY_DEST}'
+    action: deploy
+    file: '${APP_BINARY}'
+    type: executable
 ```
 
 If a variable is missing, parsing fails with a clear error.
