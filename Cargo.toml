@@ -33,5 +33,13 @@ fs_extra = "1"
 # Shell expansion / command building
 which = "6"
 
+# HTTP client (for the http action)
+reqwest = { version = "0.12", features = ["blocking", "rustls-tls", "json"], default-features = false }
+
+# Archive support (for the archive action)
+zip = "2"
+flate2 = "1"
+tar = "0.4"
+
 [dev-dependencies]
 tempfile = "3"

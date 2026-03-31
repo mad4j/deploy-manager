@@ -4,7 +4,7 @@ use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use tracing::{error, info, warn};
 
-use crate::core::actions::{deploy, filesystem, shell, wait};
+use crate::core::actions::{archive, deploy, filesystem, http, shell, wait};
 use crate::core::config::{ActionConfig, DeployFile};
 use crate::frontend::progress::ProgressTracker;
 
@@ -100,5 +100,7 @@ async fn run_action(action: &ActionConfig, ctx: &ExecutionContext) -> Result<()>
         ActionConfig::Shell(cfg) => shell::run(cfg, ctx).await,
         ActionConfig::Filesystem(cfg) => filesystem::run(cfg, ctx).await,
         ActionConfig::Wait(cfg) => wait::run(cfg, ctx).await,
+        ActionConfig::Http(cfg) => http::run(cfg, ctx).await,
+        ActionConfig::Archive(cfg) => archive::run(cfg, ctx).await,
     }
 }
