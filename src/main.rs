@@ -1,0 +1,41 @@
+use anyhow::{Context, Result};
+use clap::Parser;
+use tracing::info;
+
+mod cli;
+mod core;
+mod frontend;
+
+use cli::Cli;
+use core::config::parse_deploy_file;
+use core::executor::execute;
+use frontend::{logger, progress::ProgressTracker};
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let cli = Cli::parse();
+
+    logger::init(cli.verbose);
+
+    let content = std::fs::read_to_string(&cli.file)
+        .with_context(|| format!("Cannot read deploy file: {}", cli.file.display()))?;
+
+    let deploy = parse_deploy_file(&content)
+        .with_context(|| format!("Invalid deploy file: {}", cli.file.display()))?;
+
+    if let Some(desc) = &deploy.description {
+        info!(description = %desc, "Deploy plan loaded");
+    }
+    info!(actions = deploy.actions.len(), "Actions to execute");
+
+    if cli.dry_run {
+        info!("Dry-run mode: actions will be validated but not executed");
+    }
+
+    let tracker = ProgressTracker::new(deploy.actions.len());
+
+    execute(&deploy, cli.dry_run, &tracker).await?;
+
+    info!("All actions completed successfully");
+    Ok(())
+}

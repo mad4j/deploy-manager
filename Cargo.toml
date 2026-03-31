@@ -1,0 +1,37 @@
+[package]
+name = "deploy-manager"
+version = "0.1.0"
+edition = "2024"
+description = "A platform-independent CLI deployment manager"
+license = "MIT"
+
+[dependencies]
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
+
+# YAML parsing
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Structured logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Progress bars
+indicatif = { version = "0.17", features = ["rayon"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Filesystem extras
+fs_extra = "1"
+
+# Shell expansion / command building
+which = "6"
+
+[dev-dependencies]
+tempfile = "3"

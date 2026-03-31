@@ -1,0 +1,55 @@
+description: "Example deploy plan – demonstrates all supported action types"
+
+actions:
+  # ── Deploy action ───────────────────────────────────────────────────────────
+  # Copies a binary to a destination directory on the local machine.
+  - name: deploy-myapp
+    type: deploy
+    app: myapp
+    binary: /usr/local/bin/myapp      # path to the built artefact
+    destination: /opt/apps/myapp/     # where to install it
+    target: local                     # default – local processor
+    exec_type: executable             # default – native binary
+
+  # ── Shell action ────────────────────────────────────────────────────────────
+  # Runs an arbitrary shell command.
+  - name: run-post-install-hook
+    type: shell
+    command: echo "Post-install hook executed"
+    fail_on_error: true
+
+  # ── Filesystem actions ──────────────────────────────────────────────────────
+  # Create a configuration directory.
+  - name: create-config-dir
+    type: filesystem
+    operation: create_dir
+    destination: /etc/myapp
+
+  # Create an empty default config file.
+  - name: create-default-config
+    type: filesystem
+    operation: create_file
+    destination: /etc/myapp/config.yaml
+    overwrite: false
+
+  # Copy a template into place.
+  - name: copy-template
+    type: filesystem
+    operation: copy
+    source: /usr/share/myapp/template.yaml
+    destination: /etc/myapp/template.yaml
+    overwrite: true
+
+  # ── Wait action ─────────────────────────────────────────────────────────────
+  # Block until the deploy and hook actions have finished.
+  - name: wait-for-deploy-and-hook
+    type: wait
+    depends_on:
+      - deploy-myapp
+      - run-post-install-hook
+    timeout_secs: 60
+
+  # ── Final shell action ──────────────────────────────────────────────────────
+  - name: announce-completion
+    type: shell
+    command: echo "Deployment of myapp finished successfully"
