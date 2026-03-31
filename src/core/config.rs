@@ -165,13 +165,43 @@ fn default_true() -> bool {
     true
 }
 
+fn interpolate_env_vars(content: &str) -> anyhow::Result<String> {
+    let mut out = String::with_capacity(content.len());
+    let mut rest = content;
+
+    while let Some(start) = rest.find("${") {
+        out.push_str(&rest[..start]);
+
+        let placeholder = &rest[start + 2..];
+        let Some(end) = placeholder.find('}') else {
+            anyhow::bail!("Unclosed environment variable placeholder: '${{'")
+        };
+
+        let var_name = &placeholder[..end];
+        if var_name.is_empty() {
+            anyhow::bail!("Empty environment variable placeholder '${{}}' is not allowed");
+        }
+
+        let value = std::env::var(var_name)
+            .map_err(|_| anyhow::anyhow!("Environment variable '{}' is not set", var_name))?;
+
+        out.push_str(&value);
+        rest = &placeholder[end + 1..];
+    }
+
+    out.push_str(rest);
+    Ok(out)
+}
+
 // ---------------------------------------------------------------------------
 // Parsing helpers
 // ---------------------------------------------------------------------------
 
 /// Parse a `DeployFile` from a YAML string.
 pub fn parse_deploy_file(content: &str) -> anyhow::Result<DeployFile> {
-    let deploy: DeployFile = serde_yaml::from_str(content)
+    let interpolated = interpolate_env_vars(content)?;
+
+    let deploy: DeployFile = serde_yaml::from_str(&interpolated)
         .map_err(|e| anyhow::anyhow!("Failed to parse deploy file: {}", e))?;
     validate_deploy_file(&deploy)?;
     Ok(deploy)
@@ -260,5 +290,44 @@ actions:
         } else {
             panic!("expected deploy action");
         }
+    }
+
+    #[test]
+    fn env_var_interpolation_supported() {
+        let env_var_name = ["USERNAME", "USER"]
+            .into_iter()
+            .find(|name| std::env::var(name).is_ok())
+            .expect("expected USERNAME or USER to be set in test environment");
+
+        let yaml = format!(
+            r#"
+actions:
+  - name: print-path
+    type: shell
+    command: echo ${{{}}}
+"#,
+            env_var_name
+        );
+
+        let deploy = parse_deploy_file(&yaml).unwrap();
+        if let ActionConfig::Shell(cfg) = &deploy.actions[0] {
+            assert!(!cfg.command.contains("${"));
+            assert!(cfg.command.starts_with("echo "));
+        } else {
+            panic!("expected shell action");
+        }
+    }
+
+    #[test]
+    fn env_var_missing_is_rejected() {
+        let yaml = r#"
+actions:
+  - name: bad-env
+    type: shell
+    command: "echo ${DEPLOY_MANAGER_TEST_MISSING_ENV_31A03A9B}"
+"#;
+
+        let err = parse_deploy_file(yaml).unwrap_err().to_string();
+        assert!(err.contains("is not set"));
     }
 }

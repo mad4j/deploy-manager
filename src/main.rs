@@ -15,13 +15,15 @@ use frontend::{logger, progress::ProgressTracker};
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    logger::init(cli.verbose);
-
     let content = std::fs::read_to_string(&cli.file)
         .with_context(|| format!("Cannot read deploy file: {}", cli.file.display()))?;
 
     let deploy = parse_deploy_file(&content)
         .with_context(|| format!("Invalid deploy file: {}", cli.file.display()))?;
+
+    let tracker = ProgressTracker::new(deploy.actions.len());
+
+    logger::init(cli.verbose, Some(tracker.log_handle()));
 
     if let Some(desc) = &deploy.description {
         info!(description = %desc, "Deploy plan loaded");
@@ -31,8 +33,6 @@ async fn main() -> Result<()> {
     if cli.dry_run {
         info!("Dry-run mode: actions will be validated but not executed");
     }
-
-    let tracker = ProgressTracker::new(deploy.actions.len());
 
     execute(&deploy, cli.dry_run, &tracker).await?;
 

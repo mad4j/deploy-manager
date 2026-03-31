@@ -9,7 +9,10 @@ pub async fn run(cfg: &FilesystemActionConfig, ctx: &ExecutionContext) -> Result
     info!(operation = ?cfg.operation, "Filesystem action");
 
     if ctx.dry_run {
-        info!("[dry-run] Would perform filesystem operation: {:?}", cfg.operation);
+        info!(
+            "[dry-run] Would perform filesystem operation: {:?}",
+            cfg.operation
+        );
         return Ok(());
     }
 
@@ -81,9 +84,8 @@ pub async fn run(cfg: &FilesystemActionConfig, ctx: &ExecutionContext) -> Result
                 .context("'source' is required for the delete operation")?;
 
             if src.is_dir() {
-                std::fs::remove_dir_all(src).with_context(|| {
-                    format!("Failed to delete directory: {}", src.display())
-                })?;
+                std::fs::remove_dir_all(src)
+                    .with_context(|| format!("Failed to delete directory: {}", src.display()))?;
             } else {
                 std::fs::remove_file(src)
                     .with_context(|| format!("Failed to delete file: {}", src.display()))?;
@@ -96,9 +98,8 @@ pub async fn run(cfg: &FilesystemActionConfig, ctx: &ExecutionContext) -> Result
                 .destination
                 .as_ref()
                 .context("'destination' is required for the create_dir operation")?;
-            std::fs::create_dir_all(dst).with_context(|| {
-                format!("Failed to create directory: {}", dst.display())
-            })?;
+            std::fs::create_dir_all(dst)
+                .with_context(|| format!("Failed to create directory: {}", dst.display()))?;
             info!(path = %dst.display(), "Directory created");
         }
 
@@ -111,7 +112,10 @@ pub async fn run(cfg: &FilesystemActionConfig, ctx: &ExecutionContext) -> Result
                 std::fs::create_dir_all(parent)?;
             }
             if dst.exists() && !cfg.overwrite {
-                anyhow::bail!("File already exists (set overwrite: true to replace): {}", dst.display());
+                anyhow::bail!(
+                    "File already exists (set overwrite: true to replace): {}",
+                    dst.display()
+                );
             }
             std::fs::File::create(dst)
                 .with_context(|| format!("Failed to create file: {}", dst.display()))?;

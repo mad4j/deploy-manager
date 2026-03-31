@@ -33,14 +33,26 @@ impl ProgressTracker {
         }
     }
 
+    /// Return a handle that can be used to print log lines without corrupting
+    /// the progress display.
+    pub fn log_handle(&self) -> MultiProgress {
+        self.multi.clone()
+    }
+
+    pub fn suspend<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        self.multi.suspend(f)
+    }
+
     /// Register an action as started; creates and displays its progress bar.
     pub fn start_action(&self, name: &str) {
-        let style = ProgressStyle::with_template(
-            "  {spinner:.green} {msg}",
-        )
-        .unwrap();
+        let style = ProgressStyle::with_template("  {spinner:.green} {msg}").unwrap();
 
-        let bar = self.multi.add(ProgressBar::new_spinner());
+        let bar = self
+            .multi
+            .insert_before(&self.overall, ProgressBar::new_spinner());
         bar.set_style(style);
         bar.set_message(format!("▶  {}", name));
         bar.enable_steady_tick(std::time::Duration::from_millis(100));

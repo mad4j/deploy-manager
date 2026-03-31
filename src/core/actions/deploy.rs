@@ -26,10 +26,7 @@ pub async fn run(cfg: &DeployActionConfig, ctx: &ExecutionContext) -> Result<()>
     match &cfg.target {
         DeployTarget::Local => deploy_local(cfg, ctx).await,
         DeployTarget::Remote(host) => {
-            anyhow::bail!(
-                "Remote deployment to '{}' is not yet supported",
-                host
-            );
+            anyhow::bail!("Remote deployment to '{}' is not yet supported", host);
         }
     }
 }

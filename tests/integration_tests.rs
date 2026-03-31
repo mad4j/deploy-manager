@@ -250,3 +250,59 @@ actions:
         String::from_utf8_lossy(&out.stderr)
     );
 }
+
+#[test]
+fn dry_run_supports_env_var_interpolation() {
+    let env_var_name = ["USERNAME", "USER"]
+        .into_iter()
+        .find(|name| std::env::var(name).is_ok())
+        .expect("expected USERNAME or USER to be set in test environment");
+
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        format!(
+            r#"
+actions:
+  - name: greet
+    type: shell
+    command: echo ${{{}}}
+"#,
+            env_var_name
+        ),
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn missing_env_var_fails_deploy_file_parsing() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        r#"
+actions:
+  - name: bad-env
+    type: shell
+    command: "echo ${DEPLOY_MANAGER_TEST_MISSING_ENV_31A03A9B}"
+"#,
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(!out.status.success(), "Expected parsing failure but got success");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("is not set"),
+        "expected missing env var error, stderr: {}",
+        stderr
+    );
+}

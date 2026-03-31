@@ -1,0 +1,13 @@
+description: "Deploy ${APP_NAME} with environment-based paths"
+
+actions:
+  - name: deploy-from-env
+    type: deploy
+    app: ${APP_NAME}
+    binary: ${APP_BINARY}
+    destination: ${DEPLOY_DEST}
+
+  - name: print-target
+    type: shell
+    command: 'echo Deployed ${APP_NAME} to ${DEPLOY_DEST}'
+    fail_on_error: true

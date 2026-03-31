@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
+use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use tracing::{error, info, warn};
 
@@ -28,11 +29,7 @@ pub struct ExecutionContext {
 }
 
 /// Run all actions in the deploy file sequentially, updating progress.
-pub async fn execute(
-    deploy: &DeployFile,
-    dry_run: bool,
-    tracker: &ProgressTracker,
-) -> Result<()> {
+pub async fn execute(deploy: &DeployFile, dry_run: bool, tracker: &ProgressTracker) -> Result<()> {
     let states: StateMap = Arc::new(Mutex::new(HashMap::new()));
 
     // Pre-populate state map
@@ -87,6 +84,10 @@ pub async fn execute(
     }
 
     if any_failed {
+        let _ = tracker.suspend(|| {
+            let mut stderr = io::stderr().lock();
+            writeln!(stderr)
+        });
         anyhow::bail!("One or more actions failed – see log output above.");
     }
 

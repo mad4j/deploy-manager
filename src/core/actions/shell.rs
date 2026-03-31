@@ -43,11 +43,7 @@ pub async fn run(cfg: &ShellActionConfig, ctx: &ExecutionContext) -> Result<()> 
 
     if cfg.fail_on_error && !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
-        anyhow::bail!(
-            "Command '{}' exited with code {}",
-            cfg.command,
-            code
-        );
+        anyhow::bail!("Command '{}' exited with code {}", cfg.command, code);
     }
 
     Ok(())
@@ -85,7 +81,10 @@ mod tests {
 
     #[test]
     fn shell_split_simple() {
-        assert_eq!(shell_split("echo hello world"), vec!["echo", "hello", "world"]);
+        assert_eq!(
+            shell_split("echo hello world"),
+            vec!["echo", "hello", "world"]
+        );
     }
 
     #[test]
@@ -98,9 +97,6 @@ mod tests {
 
     #[test]
     fn shell_split_single_quoted() {
-        assert_eq!(
-            shell_split("echo 'foo bar'"),
-            vec!["echo", "foo bar"]
-        );
+        assert_eq!(shell_split("echo 'foo bar'"), vec!["echo", "foo bar"]);
     }
 }

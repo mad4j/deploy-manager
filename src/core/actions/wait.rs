@@ -19,10 +19,7 @@ pub async fn run(cfg: &WaitActionConfig, ctx: &ExecutionContext) -> Result<()> {
     }
 
     if ctx.dry_run {
-        info!(
-            "[dry-run] Would wait for: {:?}",
-            cfg.depends_on
-        );
+        info!("[dry-run] Would wait for: {:?}", cfg.depends_on);
         return Ok(());
     }
 
@@ -42,7 +39,9 @@ pub async fn run(cfg: &WaitActionConfig, ctx: &ExecutionContext) -> Result<()> {
             .filter(|dep| {
                 let map = ctx.states.lock().unwrap();
                 match map.get(*dep) {
-                    Some(ActionState::Success) | Some(ActionState::Failed(_)) | Some(ActionState::Skipped) => false,
+                    Some(ActionState::Success)
+                    | Some(ActionState::Failed(_))
+                    | Some(ActionState::Skipped) => false,
                     _ => true,
                 }
             })

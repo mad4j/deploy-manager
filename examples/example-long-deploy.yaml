@@ -1,0 +1,37 @@
+description: "Long-running Windows demo for testing progress bar and log output"
+
+actions:
+  - name: prepare-demo-dir
+    type: filesystem
+    operation: create_dir
+    destination: ./target/demo-progress/staging
+
+  - name: simulate-download
+    type: shell
+    command: pwsh -NoLogo -NoProfile -Command "1..4 | ForEach-Object { Write-Output ('Downloading chunk ' + $_ + '/4'); Start-Sleep -Seconds 1 }"
+    fail_on_error: true
+
+  - name: stage-manifest
+    type: deploy
+    app: demo-progress
+    binary: ./examples/example-deploy.yaml
+    destination: ./target/demo-progress/staging/
+    target: local
+    exec_type: script
+
+  - name: simulate-health-check
+    type: shell
+    command: pwsh -NoLogo -NoProfile -Command "1..3 | ForEach-Object { Write-Output ('Health check step ' + $_ + '/3'); Start-Sleep -Seconds 2 }"
+    fail_on_error: true
+
+  - name: confirm-staging
+    type: wait
+    depends_on:
+      - stage-manifest
+      - simulate-health-check
+    timeout_secs: 30
+
+  - name: finalize-demo
+    type: shell
+    command: pwsh -NoLogo -NoProfile -Command "Write-Output 'Finalizing deployment view'; Start-Sleep -Seconds 2; Write-Output 'Demo completed'"
+    fail_on_error: true
