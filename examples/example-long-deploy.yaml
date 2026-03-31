@@ -1,4 +1,4 @@
-description: "Long-running Windows demo for testing progress bar and log output"
+# Long-running Windows demo for testing progress bar and log output
 
 actions:
   - name: prepare-demo-dir

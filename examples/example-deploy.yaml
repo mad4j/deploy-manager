@@ -1,4 +1,4 @@
-description: "Example deploy plan – demonstrates all supported action types"
+# Example deploy plan – demonstrates all supported action types
 
 actions:
   # ── Deploy action ───────────────────────────────────────────────────────────

@@ -25,9 +25,6 @@ async fn main() -> Result<()> {
 
     logger::init(cli.verbose, Some(tracker.log_handle()));
 
-    if let Some(desc) = &deploy.description {
-        info!(description = %desc, "Deploy plan loaded");
-    }
     info!(actions = deploy.actions.len(), "Actions to execute");
 
     if cli.dry_run {

@@ -4,10 +4,6 @@ use std::path::PathBuf;
 /// Top-level structure of a deploy YAML file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeployFile {
-    /// Optional description of this deploy plan.
-    #[serde(default)]
-    pub description: Option<String>,
-
     /// Ordered list of actions to execute.
     pub actions: Vec<ActionConfig>,
 }
@@ -247,7 +243,6 @@ mod tests {
     use super::*;
 
     const SAMPLE_YAML: &str = r#"
-description: "Sample deploy plan"
 actions:
   - name: copy-binary
     type: deploy

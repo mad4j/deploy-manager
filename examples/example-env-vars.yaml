@@ -1,4 +1,4 @@
-description: "Deploy ${APP_NAME} with environment-based paths"
+# Deploy ${APP_NAME} with environment-based paths
 
 actions:
   - name: deploy-from-env
