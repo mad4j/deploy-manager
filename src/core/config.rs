@@ -17,6 +17,9 @@ pub enum ActionConfig {
     Shell(ShellActionConfig),
     Filesystem(FilesystemActionConfig),
     Wait(WaitActionConfig),
+    Log(LogActionConfig),
+    Sleep(SleepActionConfig),
+    Http(HttpActionConfig),
 }
 
 impl ActionConfig {
@@ -27,6 +30,9 @@ impl ActionConfig {
             ActionConfig::Shell(c) => &c.name,
             ActionConfig::Filesystem(c) => &c.name,
             ActionConfig::Wait(c) => &c.name,
+            ActionConfig::Log(c) => &c.name,
+            ActionConfig::Sleep(c) => &c.name,
+            ActionConfig::Http(c) => &c.name,
         }
     }
 }
@@ -168,11 +174,104 @@ pub struct WaitActionConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Log action
+// ---------------------------------------------------------------------------
+
+/// Log level for a `log` action.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LogLevel {
+    /// Informational message (default).
+    #[default]
+    Info,
+    /// Warning message.
+    Warn,
+    /// Error message.
+    Error,
+}
+
+/// Configuration for a `log` action.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogActionConfig {
+    /// Unique name for this action.
+    pub name: String,
+    /// Message to emit.
+    pub message: String,
+    /// Log level (default: `info`).
+    #[serde(default)]
+    pub level: LogLevel,
+}
+
+// ---------------------------------------------------------------------------
+// Sleep action
+// ---------------------------------------------------------------------------
+
+/// Configuration for a `sleep` action.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SleepActionConfig {
+    /// Unique name for this action.
+    pub name: String,
+    /// Seconds to sleep (default: 0).
+    #[serde(default)]
+    pub secs: u64,
+    /// Milliseconds to sleep in addition to `secs` (default: 0).
+    #[serde(default)]
+    pub millis: u64,
+}
+
+// ---------------------------------------------------------------------------
+// HTTP action
+// ---------------------------------------------------------------------------
+
+/// HTTP method for an `http` action.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum HttpMethod {
+    /// HTTP GET (default).
+    #[default]
+    Get,
+    Post,
+    Put,
+    Patch,
+    Delete,
+    Head,
+}
+
+/// Configuration for an `http` action.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpActionConfig {
+    /// Unique name for this action.
+    pub name: String,
+    /// Target URL.
+    pub url: String,
+    /// HTTP method (default: `GET`).
+    #[serde(default)]
+    pub method: HttpMethod,
+    /// Optional request headers as key-value pairs.
+    #[serde(default)]
+    pub headers: std::collections::HashMap<String, String>,
+    /// Optional request body (as a plain string).
+    #[serde(default)]
+    pub body: Option<String>,
+    /// Expected HTTP status code. If set, the action fails when the response
+    /// status differs. When absent, any 2xx status is considered success.
+    #[serde(default)]
+    pub expected_status: Option<u16>,
+    /// Request timeout in seconds (0 = no timeout, default: 30).
+    #[serde(default = "default_http_timeout")]
+    pub timeout_secs: u64,
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 fn default_true() -> bool {
     true
+}
+
+fn default_http_timeout() -> u64 {
+    30
 }
 
 fn interpolate_env_vars(content: &str) -> anyhow::Result<String> {
@@ -365,5 +464,95 @@ actions:
 
         let err = parse_deploy_file(yaml).unwrap_err().to_string();
         assert!(err.contains("is not set"));
+    }
+
+    #[test]
+    fn log_action_parsed() {
+        let yaml = r#"
+actions:
+  - name: say-hello
+    action: log
+    message: "Hello, world!"
+    level: warn
+"#;
+        let deploy = parse_deploy_file(yaml).unwrap();
+        if let ActionConfig::Log(cfg) = &deploy.actions[0] {
+            assert_eq!(cfg.message, "Hello, world!");
+            assert_eq!(cfg.level, LogLevel::Warn);
+        } else {
+            panic!("expected log action");
+        }
+    }
+
+    #[test]
+    fn log_action_default_level_is_info() {
+        let yaml = r#"
+actions:
+  - name: say-hello
+    action: log
+    message: "Hello"
+"#;
+        let deploy = parse_deploy_file(yaml).unwrap();
+        if let ActionConfig::Log(cfg) = &deploy.actions[0] {
+            assert_eq!(cfg.level, LogLevel::Info);
+        } else {
+            panic!("expected log action");
+        }
+    }
+
+    #[test]
+    fn sleep_action_parsed() {
+        let yaml = r#"
+actions:
+  - name: pause
+    action: sleep
+    secs: 3
+    millis: 500
+"#;
+        let deploy = parse_deploy_file(yaml).unwrap();
+        if let ActionConfig::Sleep(cfg) = &deploy.actions[0] {
+            assert_eq!(cfg.secs, 3);
+            assert_eq!(cfg.millis, 500);
+        } else {
+            panic!("expected sleep action");
+        }
+    }
+
+    #[test]
+    fn http_action_parsed() {
+        let yaml = r#"
+actions:
+  - name: check
+    action: http
+    url: "https://example.com/health"
+    method: POST
+    expected_status: 201
+    timeout_secs: 5
+"#;
+        let deploy = parse_deploy_file(yaml).unwrap();
+        if let ActionConfig::Http(cfg) = &deploy.actions[0] {
+            assert_eq!(cfg.url, "https://example.com/health");
+            assert_eq!(cfg.method, HttpMethod::Post);
+            assert_eq!(cfg.expected_status, Some(201));
+            assert_eq!(cfg.timeout_secs, 5);
+        } else {
+            panic!("expected http action");
+        }
+    }
+
+    #[test]
+    fn http_action_default_method_is_get() {
+        let yaml = r#"
+actions:
+  - name: check
+    action: http
+    url: "https://example.com"
+"#;
+        let deploy = parse_deploy_file(yaml).unwrap();
+        if let ActionConfig::Http(cfg) = &deploy.actions[0] {
+            assert_eq!(cfg.method, HttpMethod::Get);
+        } else {
+            panic!("expected http action");
+        }
     }
 }

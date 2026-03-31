@@ -51,3 +51,25 @@ actions:
   - name: announce-completion
     action: shell
     command: echo "Deployment of myapp finished successfully"
+
+  # ── Log action ──────────────────────────────────────────────────────────────
+  # Emit a structured log message – useful to annotate phases of a deploy plan.
+  - name: log-phase-start
+    action: log
+    message: "Phase 2: post-deploy checks"
+    level: info
+
+  # ── Sleep action ────────────────────────────────────────────────────────────
+  # Pause before running health checks so the service has time to start.
+  - name: startup-pause
+    action: sleep
+    secs: 2
+
+  # ── HTTP action ─────────────────────────────────────────────────────────────
+  # Verify the service is healthy after deployment.
+  - name: health-check
+    action: http
+    url: "http://localhost:8080/health"
+    method: GET
+    expected_status: 200
+    timeout_secs: 10

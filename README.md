@@ -85,6 +85,45 @@ When `fail_on_error` is `true`, execution stops at the first command with non-ze
 
 ---
 
+### `log` — emit a message to the structured log
+
+```yaml
+- name: announce-start        # required
+  action: log
+  message: "Starting deployment phase 2"   # required – message text
+  level: info                 # optional – info (default) | warn | error
+```
+
+---
+
+### `sleep` — pause execution for a fixed duration
+
+```yaml
+- name: brief-pause           # required
+  action: sleep
+  secs: 5                     # optional – whole seconds to sleep (default: 0)
+  millis: 500                 # optional – additional milliseconds (default: 0)
+```
+
+---
+
+### `http` — send an HTTP request
+
+```yaml
+- name: health-check          # required
+  action: http
+  url: "https://api.example.com/health"   # required – target URL
+  method: GET                 # optional – GET (default) | POST | PUT | PATCH | DELETE | HEAD
+  headers:                    # optional – additional request headers
+    Authorization: "Bearer ${API_TOKEN}"
+    Content-Type: "application/json"
+  body: '{"key": "value"}'    # optional – request body as a plain string
+  expected_status: 200        # optional – fail if response status differs (default: fail on non-2xx)
+  timeout_secs: 30            # optional – request timeout (0 = none, default: 30)
+```
+
+---
+
 ## Environment Variables In Deploy Files
 
 You can reference environment variables in any YAML string value using `${VAR_NAME}`.

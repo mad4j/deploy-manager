@@ -361,3 +361,140 @@ actions:
         stderr
     );
 }
+
+// ---------------------------------------------------------------------------
+// Log action
+// ---------------------------------------------------------------------------
+
+#[test]
+fn dry_run_log_action() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        r#"
+actions:
+  - name: say-something
+    action: log
+    message: "Hello from the log action"
+    level: info
+"#,
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn real_log_action() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        r#"
+actions:
+  - name: log-info
+    action: log
+    message: "Deployment started"
+  - name: log-warn
+    action: log
+    message: "Something to note"
+    level: warn
+"#,
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Sleep action
+// ---------------------------------------------------------------------------
+
+#[test]
+fn dry_run_sleep_action() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        r#"
+actions:
+  - name: wait-a-bit
+    action: sleep
+    secs: 10
+"#,
+    )
+    .unwrap();
+
+    // In dry-run mode the sleep should be skipped.
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn real_sleep_action_short() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        r#"
+actions:
+  - name: brief-pause
+    action: sleep
+    millis: 50
+"#,
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// HTTP action
+// ---------------------------------------------------------------------------
+
+#[test]
+fn dry_run_http_action() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        r#"
+actions:
+  - name: health-check
+    action: http
+    url: "https://httpbin.org/get"
+    method: GET
+    expected_status: 200
+"#,
+    )
+    .unwrap();
+
+    // In dry-run mode no actual HTTP request is made.
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
