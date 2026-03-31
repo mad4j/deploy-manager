@@ -361,3 +361,269 @@ actions:
         stderr
     );
 }
+
+// ---------------------------------------------------------------------------
+// Http action (dry-run only – avoids network in CI)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn dry_run_http_get() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        r#"
+actions:
+  - name: ping
+    action: http
+    url: https://example.com/health
+    method: GET
+    timeout_secs: 10
+"#,
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn dry_run_http_post_with_body() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        r#"
+actions:
+  - name: notify
+    action: http
+    url: https://hooks.example.com/deploy
+    method: POST
+    headers:
+      Content-Type: application/json
+    body: '{"event": "deployed"}'
+    expected_status:
+      - 200
+      - 201
+"#,
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Archive action
+// ---------------------------------------------------------------------------
+
+#[test]
+fn dry_run_archive_create_zip() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    let source = dir.path().join("app");
+    let destination = dir.path().join("app.zip");
+    fs::write(
+        &yaml_path,
+        format!(
+            r#"
+actions:
+  - name: pack
+    action: archive
+    operation: create
+    format: zip
+    source: '{}'
+    destination: '{}'
+"#,
+            yaml_single_quoted_path(&source),
+            yaml_single_quoted_path(&destination)
+        ),
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    // Dry-run must not create any file.
+    assert!(!destination.exists(), "Dry-run should not create archive file");
+}
+
+#[test]
+fn dry_run_archive_extract_tar_gz() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    let source = dir.path().join("archive.tar.gz");
+    let destination = dir.path().join("output");
+    fs::write(
+        &yaml_path,
+        format!(
+            r#"
+actions:
+  - name: unpack
+    action: archive
+    operation: extract
+    format: tar_gz
+    source: '{}'
+    destination: '{}'
+"#,
+            yaml_single_quoted_path(&source),
+            yaml_single_quoted_path(&destination)
+        ),
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn real_archive_create_and_extract_zip() {
+    let dir = TempDir::new().unwrap();
+
+    // Create a source file to archive.
+    let src_file = dir.path().join("hello.txt");
+    fs::write(&src_file, "hello archive").unwrap();
+
+    let archive_path = dir.path().join("hello.zip");
+    let extract_dir = dir.path().join("extracted");
+
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        format!(
+            r#"
+actions:
+  - name: create-zip
+    action: archive
+    operation: create
+    format: zip
+    source: '{}'
+    destination: '{}'
+  - name: extract-zip
+    action: archive
+    operation: extract
+    format: zip
+    source: '{}'
+    destination: '{}'
+"#,
+            yaml_single_quoted_path(&src_file),
+            yaml_single_quoted_path(&archive_path),
+            yaml_single_quoted_path(&archive_path),
+            yaml_single_quoted_path(&extract_dir)
+        ),
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    assert!(archive_path.exists(), "zip archive should have been created");
+    let extracted_file = extract_dir.join("hello.txt");
+    assert!(extracted_file.exists(), "extracted file should exist");
+    assert_eq!(fs::read_to_string(&extracted_file).unwrap(), "hello archive");
+}
+
+#[test]
+fn real_archive_create_and_extract_tar_gz() {
+    let dir = TempDir::new().unwrap();
+
+    // Create a source file to archive.
+    let src_file = dir.path().join("data.txt");
+    fs::write(&src_file, "tar gz content").unwrap();
+
+    let archive_path = dir.path().join("data.tar.gz");
+    let extract_dir = dir.path().join("unpacked");
+
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        format!(
+            r#"
+actions:
+  - name: create-tar
+    action: archive
+    operation: create
+    format: tar_gz
+    source: '{}'
+    destination: '{}'
+  - name: extract-tar
+    action: archive
+    operation: extract
+    format: tar_gz
+    source: '{}'
+    destination: '{}'
+"#,
+            yaml_single_quoted_path(&src_file),
+            yaml_single_quoted_path(&archive_path),
+            yaml_single_quoted_path(&archive_path),
+            yaml_single_quoted_path(&extract_dir)
+        ),
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    assert!(archive_path.exists(), "tar.gz archive should have been created");
+    let extracted_file = extract_dir.join("data.txt");
+    assert!(extracted_file.exists(), "extracted file should exist");
+    assert_eq!(fs::read_to_string(&extracted_file).unwrap(), "tar gz content");
+}
+
+#[test]
+fn archive_overwrite_false_fails_if_destination_exists() {
+    let dir = TempDir::new().unwrap();
+
+    let src_file = dir.path().join("file.txt");
+    fs::write(&src_file, "content").unwrap();
+
+    // Pre-create the destination so the action should fail with overwrite: false
+    let archive_path = dir.path().join("output.zip");
+    fs::write(&archive_path, "existing").unwrap();
+
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        format!(
+            r#"
+actions:
+  - name: should-fail
+    action: archive
+    operation: create
+    format: zip
+    source: '{}'
+    destination: '{}'
+    overwrite: false
+"#,
+            yaml_single_quoted_path(&src_file),
+            yaml_single_quoted_path(&archive_path)
+        ),
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    assert!(!out.status.success(), "Expected failure due to existing destination");
+}

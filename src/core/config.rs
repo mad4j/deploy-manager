@@ -17,6 +17,8 @@ pub enum ActionConfig {
     Shell(ShellActionConfig),
     Filesystem(FilesystemActionConfig),
     Wait(WaitActionConfig),
+    Http(HttpActionConfig),
+    Archive(ArchiveActionConfig),
 }
 
 impl ActionConfig {
@@ -27,6 +29,8 @@ impl ActionConfig {
             ActionConfig::Shell(c) => &c.name,
             ActionConfig::Filesystem(c) => &c.name,
             ActionConfig::Wait(c) => &c.name,
+            ActionConfig::Http(c) => &c.name,
+            ActionConfig::Archive(c) => &c.name,
         }
     }
 }
@@ -168,11 +172,113 @@ pub struct WaitActionConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Http action
+// ---------------------------------------------------------------------------
+
+/// HTTP method for a `http` action.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum HttpMethod {
+    /// HTTP GET (default).
+    #[default]
+    Get,
+    Post,
+    Put,
+    Patch,
+    Delete,
+    Head,
+}
+
+/// Configuration for an `http` action.
+///
+/// Sends an HTTP request to the specified URL. Useful for calling webhooks,
+/// triggering remote APIs, or checking service health endpoints.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HttpActionConfig {
+    /// Unique name for this action.
+    pub name: String,
+    /// Target URL.
+    pub url: String,
+    /// HTTP method (default: `GET`).
+    #[serde(default)]
+    pub method: HttpMethod,
+    /// Optional HTTP headers as key-value pairs.
+    #[serde(default)]
+    pub headers: std::collections::HashMap<String, String>,
+    /// Optional request body (used with POST, PUT, PATCH).
+    #[serde(default)]
+    pub body: Option<String>,
+    /// List of acceptable HTTP status codes.  When empty, any 2xx code is
+    /// accepted.
+    #[serde(default)]
+    pub expected_status: Vec<u16>,
+    /// Request timeout in seconds (default: 30, 0 = no timeout).
+    #[serde(default = "default_http_timeout")]
+    pub timeout_secs: u64,
+    /// Whether a non-2xx / unexpected response code is treated as an error
+    /// (default: `true`).
+    #[serde(default = "default_true")]
+    pub fail_on_error: bool,
+}
+
+// ---------------------------------------------------------------------------
+// Archive action
+// ---------------------------------------------------------------------------
+
+/// Archive formats supported by the `archive` action.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ArchiveFormat {
+    /// ZIP archive.
+    Zip,
+    /// Gzip-compressed TAR archive (`.tar.gz` / `.tgz`).
+    TarGz,
+}
+
+/// Operations supported by the `archive` action.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ArchiveOperation {
+    /// Create an archive from `source` and write it to `destination`.
+    Create,
+    /// Extract the archive at `source` into the directory `destination`.
+    Extract,
+}
+
+/// Configuration for an `archive` action.
+///
+/// Creates or extracts a ZIP or TAR.GZ archive.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArchiveActionConfig {
+    /// Unique name for this action.
+    pub name: String,
+    /// Operation to perform: `create` or `extract`.
+    pub operation: ArchiveOperation,
+    /// Archive format: `zip` or `tar_gz`.
+    pub format: ArchiveFormat,
+    /// Source path:
+    /// - For `create`: the file or directory to archive.
+    /// - For `extract`: the archive file to unpack.
+    pub source: PathBuf,
+    /// Destination path:
+    /// - For `create`: the path where the new archive will be written.
+    /// - For `extract`: the directory into which files will be extracted.
+    pub destination: PathBuf,
+    /// Overwrite destination if it already exists (default: `false`).
+    #[serde(default)]
+    pub overwrite: bool,
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 fn default_true() -> bool {
     true
+}
+
+fn default_http_timeout() -> u64 {
+    30
 }
 
 fn interpolate_env_vars(content: &str) -> anyhow::Result<String> {

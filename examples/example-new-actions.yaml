@@ -1,0 +1,56 @@
+---
+# example-new-actions.yaml
+#
+# Demonstrates the `http` and `archive` actions introduced in addition to the
+# original deploy / shell / filesystem / wait actions.
+
+actions:
+
+  # ── archive: pack the application directory into a ZIP ──────────────────────
+  - name: pack-release
+    action: archive
+    operation: create
+    format: zip
+    source: /tmp/myapp/dist
+    destination: /tmp/myapp/myapp-release.zip
+    overwrite: true
+
+  # ── archive: pack the same directory as a tar.gz ────────────────────────────
+  - name: pack-release-tar
+    action: archive
+    operation: create
+    format: tar_gz
+    source: /tmp/myapp/dist
+    destination: /tmp/myapp/myapp-release.tar.gz
+    overwrite: true
+
+  # ── archive: unpack a previously built archive ──────────────────────────────
+  - name: unpack-release
+    action: archive
+    operation: extract
+    format: zip
+    source: /tmp/myapp/myapp-release.zip
+    destination: /tmp/myapp/unpacked
+
+  # ── http: POST a deployment event to a webhook ──────────────────────────────
+  - name: notify-webhook
+    action: http
+    url: https://hooks.example.com/deploy
+    method: POST
+    headers:
+      Content-Type: application/json
+      Authorization: Bearer ${WEBHOOK_TOKEN}
+    body: '{"application":"myapp","status":"deployed"}'
+    expected_status:
+      - 200
+      - 201
+      - 204
+    timeout_secs: 15
+
+  # ── http: wait for the health endpoint to return 200 ────────────────────────
+  - name: healthcheck
+    action: http
+    url: https://myapp.example.com/health
+    method: GET
+    timeout_secs: 30
+    fail_on_error: true
