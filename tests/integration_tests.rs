@@ -19,6 +19,31 @@ fn run(args: &[&str]) -> std::process::Output {
         .expect("failed to run deploy-manager")
 }
 
+fn yaml_single_quoted_str(value: &str) -> String {
+    value.replace('\'', "''")
+}
+
+fn yaml_single_quoted_path(value: &std::path::Path) -> String {
+    // YAML single-quoted scalars keep backslashes literal, ideal for Windows paths.
+    yaml_single_quoted_str(&value.display().to_string())
+}
+
+fn success_command() -> &'static str {
+    if cfg!(windows) {
+        "cmd /C echo hello"
+    } else {
+        "echo hello"
+    }
+}
+
+fn failing_command() -> &'static str {
+    if cfg!(windows) {
+        "cmd /C exit 1"
+    } else {
+        "sh -c 'exit 1'"
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Deploy file parsing / dry-run
 // ---------------------------------------------------------------------------
@@ -47,6 +72,31 @@ actions:
 }
 
 #[test]
+fn dry_run_shell_command_list() {
+    let dir = TempDir::new().unwrap();
+    let yaml_path = dir.path().join("deploy.yaml");
+    fs::write(
+        &yaml_path,
+        r#"
+actions:
+  - name: greet-many
+    type: shell
+    command:
+      - echo "hello"
+      - echo "world"
+"#,
+    )
+    .unwrap();
+
+    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
 fn dry_run_filesystem_action() {
     let dir = TempDir::new().unwrap();
     let yaml_path = dir.path().join("deploy.yaml");
@@ -59,9 +109,9 @@ actions:
   - name: mkdir
     type: filesystem
     operation: create_dir
-    destination: "{}"
+    destination: '{}'
 "#,
-            dest.display()
+            yaml_single_quoted_path(&dest)
         ),
     )
     .unwrap();
@@ -105,12 +155,15 @@ fn real_shell_command_success() {
     let yaml_path = dir.path().join("deploy.yaml");
     fs::write(
         &yaml_path,
-        r#"
+        format!(
+            r#"
 actions:
   - name: say-hello
     type: shell
-    command: echo hello
+    command: '{}'
 "#,
+            yaml_single_quoted_str(success_command())
+        ),
     )
     .unwrap();
 
@@ -128,13 +181,16 @@ fn real_shell_command_failure() {
     let yaml_path = dir.path().join("deploy.yaml");
     fs::write(
         &yaml_path,
-        r#"
+        format!(
+            r#"
 actions:
   - name: fail-cmd
     type: shell
-    command: "false"
+    command: '{}'
     fail_on_error: true
 "#,
+            yaml_single_quoted_str(failing_command())
+        ),
     )
     .unwrap();
 
@@ -155,9 +211,9 @@ actions:
   - name: make-dir
     type: filesystem
     operation: create_dir
-    destination: "{}"
+    destination: '{}'
 "#,
-            new_dir.display()
+            yaml_single_quoted_path(&new_dir)
         ),
     )
     .unwrap();
@@ -187,12 +243,12 @@ actions:
   - name: copy-file
     type: filesystem
     operation: copy
-    source: "{}"
-    destination: "{}"
+    source: '{}'
+    destination: '{}'
     overwrite: true
 "#,
-            src.display(),
-            dst.display()
+            yaml_single_quoted_path(&src),
+            yaml_single_quoted_path(&dst)
         ),
     )
     .unwrap();

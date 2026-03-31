@@ -40,10 +40,24 @@ Each action has a mandatory `type` field that selects the action variant, and a 
 ```yaml
 - name: run-hook              # required
   type: shell
-  command: echo "hello"       # required – shell command to run
+  command: echo "hello"       # required – single command OR list of commands
   working_dir: /tmp           # optional – working directory (default: cwd)
   fail_on_error: true         # optional – abort on non-zero exit code (default: true)
 ```
+
+You can also execute multiple commands in sequence:
+
+```yaml
+- name: run-setup
+  type: shell
+  command:
+    - echo "prepare"
+    - echo "migrate"
+    - echo "done"
+  fail_on_error: true
+```
+
+When `fail_on_error` is `true`, execution stops at the first command with non-zero exit code.
 
 ---
 

@@ -6,44 +6,62 @@ use crate::core::executor::ExecutionContext;
 
 /// Execute a `shell` action.
 pub async fn run(cfg: &ShellActionConfig, ctx: &ExecutionContext) -> Result<()> {
-    info!(command = %cfg.command, "Shell action");
+    let commands = cfg.command.as_slice();
+    anyhow::ensure!(!commands.is_empty(), "Shell action requires at least one command");
+    anyhow::ensure!(
+        commands.iter().all(|command| !command.trim().is_empty()),
+        "Shell action contains an empty command"
+    );
+
+    info!(count = commands.len(), "Shell action");
 
     if ctx.dry_run {
-        info!("[dry-run] Would execute: {}", cfg.command);
+        for command in &commands {
+            info!("[dry-run] Would execute: {}", command);
+        }
         return Ok(());
     }
 
-    // Split the command into program + args using a simple shell-style split.
-    let parts = shell_split(&cfg.command);
-    anyhow::ensure!(!parts.is_empty(), "Empty command");
+    for (index, command) in commands.iter().enumerate() {
+        info!(
+            command = %command,
+            position = index + 1,
+            total = commands.len(),
+            "Executing shell command"
+        );
 
-    let (program, args) = parts.split_first().unwrap();
+        // Split the command into program + args using a simple shell-style split.
+        let parts = shell_split(command);
+        anyhow::ensure!(!parts.is_empty(), "Empty command");
 
-    let mut cmd = tokio::process::Command::new(program);
-    cmd.args(args);
+        let (program, args) = parts.split_first().unwrap();
 
-    if let Some(dir) = &cfg.working_dir {
-        cmd.current_dir(dir);
-    }
+        let mut cmd = tokio::process::Command::new(program);
+        cmd.args(args);
 
-    let output = cmd
-        .output()
-        .await
-        .with_context(|| format!("Failed to spawn command: {}", cfg.command))?;
+        if let Some(dir) = &cfg.working_dir {
+            cmd.current_dir(dir);
+        }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
+        let output = cmd
+            .output()
+            .await
+            .with_context(|| format!("Failed to spawn command: {}", command))?;
 
-    if !stdout.trim().is_empty() {
-        info!(stdout = %stdout.trim(), "Command output");
-    }
-    if !stderr.trim().is_empty() {
-        info!(stderr = %stderr.trim(), "Command stderr");
-    }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
 
-    if cfg.fail_on_error && !output.status.success() {
-        let code = output.status.code().unwrap_or(-1);
-        anyhow::bail!("Command '{}' exited with code {}", cfg.command, code);
+        if !stdout.trim().is_empty() {
+            info!(stdout = %stdout.trim(), "Command output");
+        }
+        if !stderr.trim().is_empty() {
+            info!(stderr = %stderr.trim(), "Command stderr");
+        }
+
+        if cfg.fail_on_error && !output.status.success() {
+            let code = output.status.code().unwrap_or(-1);
+            anyhow::bail!("Command '{}' exited with code {}", command, code);
+        }
     }
 
     Ok(())

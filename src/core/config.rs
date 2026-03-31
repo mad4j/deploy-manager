@@ -94,14 +94,33 @@ pub struct DeployActionConfig {
 pub struct ShellActionConfig {
     /// Unique name for this action.
     pub name: String,
-    /// The shell command to execute.
-    pub command: String,
+    /// The shell command(s) to execute. Supports a single string or a list.
+    pub command: ShellCommandSpec,
     /// Working directory for the command (default: current directory).
     #[serde(default)]
     pub working_dir: Option<PathBuf>,
     /// Whether a non-zero exit code is treated as an error (default: `true`).
     #[serde(default = "default_true")]
     pub fail_on_error: bool,
+}
+
+/// Supported shapes for a `shell.command` field.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ShellCommandSpec {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+impl ShellCommandSpec {
+    pub fn as_slice(&self) -> Vec<&str> {
+        match self {
+            ShellCommandSpec::Single(command) => vec![command.as_str()],
+            ShellCommandSpec::Multiple(commands) => {
+                commands.iter().map(std::string::String::as_str).collect()
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -311,8 +330,41 @@ actions:
 
         let deploy = parse_deploy_file(&yaml).unwrap();
         if let ActionConfig::Shell(cfg) = &deploy.actions[0] {
-            assert!(!cfg.command.contains("${"));
-            assert!(cfg.command.starts_with("echo "));
+            match &cfg.command {
+                ShellCommandSpec::Single(command) => {
+                    assert!(!command.contains("${"));
+                    assert!(command.starts_with("echo "));
+                }
+                ShellCommandSpec::Multiple(_) => {
+                    panic!("expected single command")
+                }
+            }
+        } else {
+            panic!("expected shell action");
+        }
+    }
+
+    #[test]
+    fn shell_command_list_supported() {
+        let yaml = r#"
+actions:
+  - name: run-many
+    type: shell
+    command:
+      - echo first
+      - echo second
+"#;
+
+        let deploy = parse_deploy_file(yaml).unwrap();
+        if let ActionConfig::Shell(cfg) = &deploy.actions[0] {
+            match &cfg.command {
+                ShellCommandSpec::Single(_) => panic!("expected command list"),
+                ShellCommandSpec::Multiple(commands) => {
+                    assert_eq!(commands.len(), 2);
+                    assert_eq!(commands[0], "echo first");
+                    assert_eq!(commands[1], "echo second");
+                }
+            }
         } else {
             panic!("expected shell action");
         }
