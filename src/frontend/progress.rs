@@ -62,10 +62,11 @@ impl ProgressTracker {
 
     /// Mark an action as finished.  `success` controls the display symbol.
     pub fn finish_action(&self, name: &str, success: bool) {
-        let bars = self.bars.lock().unwrap();
-        if let Some(bar) = bars.get(name) {
-            let symbol = if success { "✔" } else { "✘" };
-            bar.finish_with_message(format!("{} {}", symbol, name));
+        let mut bars = self.bars.lock().unwrap();
+        if let Some(bar) = bars.remove(name) {
+            let _ = success;
+            // Clear completed action rows so only the active progress UI remains.
+            bar.finish_and_clear();
         }
         drop(bars);
         self.overall.inc(1);
