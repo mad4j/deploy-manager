@@ -14,6 +14,7 @@ fn binary_path() -> std::path::PathBuf {
 
 fn run(args: &[&str]) -> std::process::Output {
     std::process::Command::new(binary_path())
+        .arg("run")
         .args(args)
         .output()
         .expect("failed to run deploy-manager")
