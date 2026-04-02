@@ -175,7 +175,10 @@ fn default_true() -> bool {
     true
 }
 
-fn interpolate_env_vars(content: &str) -> anyhow::Result<String> {
+fn interpolate_env_vars_with_overrides(
+    content: &str,
+    overrides: &std::collections::HashMap<String, String>,
+) -> anyhow::Result<String> {
     let mut out = String::with_capacity(content.len());
     let mut rest = content;
 
@@ -192,8 +195,12 @@ fn interpolate_env_vars(content: &str) -> anyhow::Result<String> {
             anyhow::bail!("Empty environment variable placeholder '${{}}' is not allowed");
         }
 
-        let value = std::env::var(var_name)
-            .map_err(|_| anyhow::anyhow!("Environment variable '{}' is not set", var_name))?;
+        let value = if let Some(v) = overrides.get(var_name) {
+            v.clone()
+        } else {
+            std::env::var(var_name)
+                .map_err(|_| anyhow::anyhow!("Environment variable '{}' is not set", var_name))?
+        };
 
         out.push_str(&value);
         rest = &placeholder[end + 1..];
@@ -209,7 +216,16 @@ fn interpolate_env_vars(content: &str) -> anyhow::Result<String> {
 
 /// Parse a `DeployFile` from a YAML string.
 pub fn parse_deploy_file(content: &str) -> anyhow::Result<DeployFile> {
-    let interpolated = interpolate_env_vars(content)?;
+    parse_deploy_file_with_env(content, &std::collections::HashMap::new())
+}
+
+/// Parse a `DeployFile` from a YAML string, substituting `env_overrides` in
+/// place of (or in addition to) actual environment variables.
+pub fn parse_deploy_file_with_env(
+    content: &str,
+    env_overrides: &std::collections::HashMap<String, String>,
+) -> anyhow::Result<DeployFile> {
+    let interpolated = interpolate_env_vars_with_overrides(content, env_overrides)?;
 
     let deploy: DeployFile = serde_yaml::from_str(&interpolated)
         .map_err(|e| anyhow::anyhow!("Failed to parse deploy file: {}", e))?;

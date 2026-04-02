@@ -63,7 +63,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap(), "--dry-run"]);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -88,7 +88,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap(), "--dry-run"]);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -116,7 +116,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap(), "--dry-run"]);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -140,7 +140,7 @@ actions:
     .unwrap();
 
     // In dry-run mode the binary existence check is skipped.
-    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap(), "--dry-run"]);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -166,7 +166,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap()]);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -193,7 +193,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap()]);
     assert!(!out.status.success(), "Expected failure but got success");
 }
 
@@ -217,7 +217,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap()]);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -252,7 +252,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap()]);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -267,7 +267,7 @@ fn invalid_yaml_rejected() {
     let yaml_path = dir.path().join("bad.yaml");
     fs::write(&yaml_path, "this: is: not: valid: yaml:::::").unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap()]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap()]);
     assert!(!out.status.success());
 }
 
@@ -275,7 +275,7 @@ fn invalid_yaml_rejected() {
 fn missing_file_exits_with_error() {
     let tmp = std::env::temp_dir();
     let nonexistent = tmp.join("nonexistent-deploy-manager-file-99999.yaml");
-    let out = run(&["--file", nonexistent.to_str().unwrap()]);
+    let out = run(&["run", "--file", nonexistent.to_str().unwrap()]);
     assert!(!out.status.success());
 }
 
@@ -298,7 +298,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap(), "--dry-run"]);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -329,7 +329,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap(), "--dry-run"]);
     assert!(
         out.status.success(),
         "stderr: {}",
@@ -352,7 +352,7 @@ actions:
     )
     .unwrap();
 
-    let out = run(&["--file", yaml_path.to_str().unwrap(), "--dry-run"]);
+    let out = run(&["run", "--file", yaml_path.to_str().unwrap(), "--dry-run"]);
     assert!(!out.status.success(), "Expected parsing failure but got success");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
