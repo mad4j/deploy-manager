@@ -1,0 +1,3 @@
+[submodule "external/roe"]
+	path = external/roe
+	url = https://github.com/mad4j/roe.git
