@@ -5,34 +5,39 @@ use tracing::info;
 mod cli;
 mod core;
 mod frontend;
+mod grpc;
+mod runner;
 
-use cli::Cli;
-use core::config::parse_deploy_file;
-use core::executor::execute;
-use frontend::{logger, progress::ProgressTracker};
+use cli::{Cli, Command};
+use frontend::logger;
+use grpc::{DeployManagerService, DeployManagerServer};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let content = std::fs::read_to_string(&cli.file)
-        .with_context(|| format!("Cannot read deploy file: {}", cli.file.display()))?;
+    match cli.command {
+        Command::Run {
+            file,
+            verbose,
+            dry_run,
+        } => {
+            logger::init(verbose, None);
+            runner::run_deploy(file.to_str().unwrap_or_default(), dry_run).await?;
+            info!("All actions completed successfully");
+        }
 
-    let deploy = parse_deploy_file(&content)
-        .with_context(|| format!("Invalid deploy file: {}", cli.file.display()))?;
+        Command::Serve { addr } => {
+            logger::init(false, None);
+            info!(%addr, "Starting DeployManager gRPC server");
 
-    let tracker = ProgressTracker::new(deploy.actions.len());
-
-    logger::init(cli.verbose, Some(tracker.log_handle()));
-
-    info!(actions = deploy.actions.len(), "Actions to execute");
-
-    if cli.dry_run {
-        info!("Dry-run mode: actions will be validated but not executed");
+            tonic::transport::Server::builder()
+                .add_service(DeployManagerServer::new(DeployManagerService::default()))
+                .serve(addr)
+                .await
+                .with_context(|| format!("gRPC server failed on {addr}"))?;
+        }
     }
 
-    execute(&deploy, cli.dry_run, &tracker).await?;
-
-    info!("All actions completed successfully");
     Ok(())
 }
