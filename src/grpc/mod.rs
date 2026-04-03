@@ -3,6 +3,9 @@ use tracing::{error, info};
 
 use crate::runner::run_deploy_from_content;
 
+pub mod managed_application;
+pub use managed_application::{ManagedApplicationServer, ManagedApplicationService};
+
 // Include the generated protobuf/tonic code from external/roe.
 pub mod deploy_manager {
     tonic::include_proto!("deploy_manager");
