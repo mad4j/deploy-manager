@@ -10,7 +10,9 @@ mod runner;
 
 use cli::{Cli, Command};
 use frontend::logger;
-use grpc::{DeployManagerService, DeployManagerServer};
+use grpc::{
+    DeployManagerService, DeployManagerServer, ManagedApplicationServer, ManagedApplicationService,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -31,9 +33,18 @@ async fn main() -> Result<()> {
             logger::init(false, None);
             info!(%addr, "Starting DeployManager gRPC server");
 
+            let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+            let managed_app_svc =
+                ManagedApplicationService::new("deploy-manager", addr, shutdown_tx);
+
             tonic::transport::Server::builder()
                 .add_service(DeployManagerServer::new(DeployManagerService::default()))
-                .serve(addr)
+                .add_service(ManagedApplicationServer::new(managed_app_svc))
+                .serve_with_shutdown(addr, async {
+                    shutdown_rx.await.ok();
+                    info!("Graceful shutdown signal received");
+                })
                 .await
                 .with_context(|| format!("gRPC server failed on {addr}"))?;
         }
